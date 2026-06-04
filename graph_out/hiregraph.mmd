@@ -1,0 +1,44 @@
+---
+config:
+  flowchart:
+    curve: linear
+---
+graph TD;
+	__start__(<p>__start__</p>)
+	ingest_resume_jd(ingest_resume_jd)
+	extract_jd_requirements(extract_jd_requirements)
+	skill_worker(skill_worker)
+	start_parallel_scoring(start_parallel_scoring)
+	experience_scorer(experience_scorer)
+	education_scorer(education_scorer)
+	signal_scorer(signal_scorer)
+	research_agent(research_agent)
+	aggregate_scores(aggregate_scores)
+	recommendation_router(recommendation_router)
+	draft_email(draft_email)
+	draft_rejection(draft_rejection)
+	human_review(human_review)
+	__end__(<p>__end__</p>)
+	__start__ --> ingest_resume_jd;
+	aggregate_scores --> recommendation_router;
+	education_scorer --> aggregate_scores;
+	experience_scorer --> aggregate_scores;
+	extract_jd_requirements -.-> education_scorer;
+	extract_jd_requirements -.-> experience_scorer;
+	extract_jd_requirements -.-> research_agent;
+	extract_jd_requirements -.-> signal_scorer;
+	extract_jd_requirements -.-> skill_worker;
+	human_review -.-> draft_email;
+	human_review -.-> draft_rejection;
+	ingest_resume_jd --> extract_jd_requirements;
+	recommendation_router -.-> draft_email;
+	recommendation_router -.-> draft_rejection;
+	recommendation_router -.-> human_review;
+	research_agent --> aggregate_scores;
+	signal_scorer --> aggregate_scores;
+	skill_worker --> aggregate_scores;
+	draft_email --> __end__;
+	draft_rejection --> __end__;
+	classDef default fill:#f2f0ff,line-height:1.2
+	classDef first fill-opacity:0
+	classDef last fill:#bfb6fc
