@@ -21,6 +21,14 @@ class BuildHireGraphTests(unittest.TestCase):
                     {"model_dump": lambda _self: self.payload},
                 )()
 
+        class CritiqueLLM:
+            def invoke(self, prompt):
+                return type(
+                    "Result",
+                    (),
+                    {"approved": True, "feedback": "Ready to send."},
+                )()
+
         class FakeLLM:
             def with_structured_output(self, schema, **kwargs):
                 if schema.__name__ == "JDRequirements":
@@ -47,6 +55,9 @@ class BuildHireGraphTests(unittest.TestCase):
                         }
                     )
 
+                if schema.__name__ == "EmailCritique":
+                    return CritiqueLLM()
+
                 return StructuredLLM(
                     {
                         "dimension": "experience",
@@ -63,11 +74,21 @@ class BuildHireGraphTests(unittest.TestCase):
             tmp_path = Path(tmpdir)
             resume_path = tmp_path / "resume.md"
             jd_path = tmp_path / "jd.md"
-            resume_path.write_text("Resume body with SQL", encoding="utf-8")
+            resume_path.write_text(
+                "# Eitan Bergmann\n\nEmail: eitan@example.com\n\nResume body with SQL",
+                encoding="utf-8",
+            )
             jd_path.write_text("Junior Data Analyst role requiring SQL", encoding="utf-8")
 
             graph = build_hiregraph()
-            with patch("src.node.llm", FakeLLM()), patch("src.node.tavily_search", return_value=[]):
+            fake_llm = FakeLLM()
+            with (
+                patch("src.node.extract_llm", fake_llm),
+                patch("src.node.score_llm", fake_llm),
+                patch("src.node.email_llm", fake_llm),
+                patch("src.node.critic_llm", fake_llm),
+                patch("src.node.tavily_search", return_value=[]),
+            ):
                 result = graph.invoke(
                     {
                         "resume_path": str(resume_path),
@@ -76,12 +97,19 @@ class BuildHireGraphTests(unittest.TestCase):
                     config={"configurable": {"thread_id": "test-full-flow"}},
                 )
 
-        self.assertEqual(result["raw_resume"], "Resume body with SQL")
+        self.assertIn("Resume body with SQL", result["raw_resume"])
         self.assertEqual(result["raw_jd"], "Junior Data Analyst role requiring SQL")
         self.assertEqual(result["errors"], [])
+        self.assertEqual(result["candidate_name"], "Eitan Bergmann")
+        self.assertEqual(result["candidate_email"], "eitan@example.com")
         self.assertEqual(result["recommendation"], "advance")
         self.assertEqual(result["final_score"], 8)
+        self.assertEqual(result["sender_email"], "Hiring_Team")
         self.assertEqual(result["draft_email"], "Please share your availability.")
+        self.assertTrue(result["email_approved_by_critic"])
+        self.assertTrue(result["email_sent"])
+        self.assertTrue(result["ats_updated"])
+        self.assertEqual(result["audit_trail"][-1]["node"], "finalize")
 
 
 class MainTests(unittest.TestCase):
@@ -94,8 +122,15 @@ class MainTests(unittest.TestCase):
                     "recommendation": "advance",
                     "human_review_decision": None,
                     "final_score": 8.0,
+                    "candidate_email": "eitan@example.com",
+                    "sender_email": "Hiring_Team",
                     "draft_email": "Please share your availability.",
                     "rejection_email": None,
+                    "email_sent": True,
+                    "ats_updated": True,
+                    "rejection_logged": None,
+                    "compensation_done": None,
+                    "audit_trail": [],
                 }
 
         output = StringIO()

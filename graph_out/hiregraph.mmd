@@ -18,9 +18,19 @@ graph TD;
 	draft_email(draft_email)
 	draft_rejection(draft_rejection)
 	human_review(human_review)
+	critic_loop(critic_loop)
+	send_email_update_ats(send_email_update_ats)
+	log_rejection(log_rejection)
+	compensate(compensate)
+	finalize(finalize)
 	__end__(<p>__end__</p>)
 	__start__ --> ingest_resume_jd;
 	aggregate_scores --> recommendation_router;
+	critic_loop -.-> draft_email;
+	critic_loop -.-> human_review;
+	critic_loop -.-> send_email_update_ats;
+	draft_email --> critic_loop;
+	draft_rejection --> log_rejection;
 	education_scorer --> aggregate_scores;
 	experience_scorer --> aggregate_scores;
 	extract_jd_requirements -.-> education_scorer;
@@ -31,14 +41,15 @@ graph TD;
 	human_review -.-> draft_email;
 	human_review -.-> draft_rejection;
 	ingest_resume_jd --> extract_jd_requirements;
+	log_rejection --> finalize;
 	recommendation_router -.-> draft_email;
 	recommendation_router -.-> draft_rejection;
 	recommendation_router -.-> human_review;
 	research_agent --> aggregate_scores;
+	send_email_update_ats --> finalize;
 	signal_scorer --> aggregate_scores;
 	skill_worker --> aggregate_scores;
-	draft_email --> __end__;
-	draft_rejection --> __end__;
+	finalize --> __end__;
 	classDef default fill:#f2f0ff,line-height:1.2
 	classDef first fill-opacity:0
 	classDef last fill:#bfb6fc

@@ -1,21 +1,33 @@
 from src.state import HireGraphState, SkillWorkerInput
 from src.utils import extract_text_from_file
-from src.schema import JDRequirements, SkillScore,DimensionScore
-from dotenv import load_dotenv
-import os
+from src.schema import JDRequirements, SkillScore,DimensionScore,EmailCritique
 from langchain_openai import ChatOpenAI
 from langgraph.types import Send, Command, Literal, interrupt
 
-from src.tools import tavily_search
-from src.utils import extract_candidate_name, extract_github_url
-
-load_dotenv()
-llm = ChatOpenAI(
-    model="gpt-4",
-    temperature=0,
-    api_key=os.getenv("OPENAI_API_KEY"),
-    max_retries=5,
+from src.config import (
+    CRITIC_MODEL,
+    EMAIL_MODEL,
+    EXTRACT_MODEL,
+    OPENAI_API_KEY,
+    SCORING_MODEL,
 )
+from src.tools import tavily_search
+from src.utils import extract_candidate_name, extract_github_url, extract_email_from_text
+
+
+def build_llm(model: str) -> ChatOpenAI:
+    return ChatOpenAI(
+        model=model,
+        temperature=0,
+        api_key=OPENAI_API_KEY,
+        max_retries=5,
+    )
+
+
+extract_llm = build_llm(EXTRACT_MODEL)
+score_llm = build_llm(SCORING_MODEL)
+email_llm = build_llm(EMAIL_MODEL)
+critic_llm = build_llm(CRITIC_MODEL)
 
 
 ###########  Node for file Ingestion ############
@@ -36,7 +48,14 @@ def ingest_resume_jd(state: HireGraphState) -> HireGraphState:
     except Exception as e:
         errors.append(str(e))
 
+    raw_resume = state.get("raw_resume", "")
+    candidate_email = extract_email_from_text(raw_resume)
+    candidate_name = extract_candidate_name(raw_resume) if raw_resume else "candidate"
+
+    state["candidate_email"] = candidate_email
+    state["candidate_name"] = candidate_name
     state["errors"] = errors
+
     return state
 
 
@@ -46,7 +65,7 @@ def extract_jd_requirements(state: HireGraphState) -> HireGraphState:
     if not jd_text:
         raise ValueError(f"Job description text is missing. Ingestion errors: {state.get('errors', [])}")
 
-    structured_llm = llm.with_structured_output(
+    structured_llm = extract_llm.with_structured_output(
         JDRequirements,
         method="function_calling",
     )
@@ -62,16 +81,15 @@ def extract_jd_requirements(state: HireGraphState) -> HireGraphState:
     - Separate required skills from preferred or nice-to-have skills.
     - If seniority is unclear, return "unknown".
     - Keep each item concise.
-    - Required skills should include tools, technologies, frameworks, programming languages, and concrete capabilities.
-    - Responsibilities should describe what the person will actually do in the role.
-    - Do not summarize detailed technical requirements too broadly.
-    - If the JD lists sub-skills, extract them separately.
-    - Example: "SQL fluency (window functions, CTEs, joins)" should become:
-    ["SQL", "window functions", "CTEs", "joins"].
-    - Preserve alternatives such as "Python or R" as one requirement if the JD accepts either.
-    - Tools mentioned in responsibilities should be captured either as required or preferred depending on wording.
-    - Do not invent requirements.
-
+    
+    Important skill extraction rules:
+    - Extract broad, scorable skill categories.
+    - Do not split sub-skills into separate required skills.
+    - Example: "SQL fluency (window functions, CTEs, joins)" should become only "SQL fluency" or "SQL".
+    - Example: "Python or R for data wrangling" should become "Python or R" and "data wrangling".
+    - Preserve alternatives such as "Python or R" as one skill if the JD accepts either.
+    - Do not include concepts like CTEs, window functions, joins, REST verbs, indexes, or query plans as separate skills unless the JD clearly lists them as independent requirements.
+    - Tools mentioned only as learning exposure should go to preferred_skills, not required_skills.
     Job Description:
     {jd_text}
     """
@@ -88,7 +106,7 @@ def skill_worker(state: SkillWorkerInput):
     skill = state["skill"]
 
     
-    structured_llm = llm.with_structured_output(
+    structured_llm = score_llm.with_structured_output(
         SkillScore,
         method="function_calling",
     )
@@ -128,7 +146,7 @@ def education_scorer(state: HireGraphState):
     resume_text = state["resume_text"]
 
 
-    structured_llm = llm.with_structured_output(DimensionScore,method="function_calling")
+    structured_llm = score_llm.with_structured_output(DimensionScore, method="function_calling")
 
     prompt = f"""
         You are evaluating the candidate's education fit for a job.
@@ -162,7 +180,7 @@ def experience_scorer(state: HireGraphState):
     resume_text = state["resume_text"]
 
 
-    structured_llm = llm.with_structured_output(DimensionScore, method="function_calling")
+    structured_llm = score_llm.with_structured_output(DimensionScore, method="function_calling")
 
     prompt = f"""
         You are evaluating the candidate's experience fit for a job.
@@ -199,7 +217,7 @@ def signal_scorer(state: HireGraphState):
     resume_text = state["resume_text"]
     jd_requirements = state["jd_requirements"]
 
-    structured_llm = llm.with_structured_output(DimensionScore,method="function_calling")
+    structured_llm = score_llm.with_structured_output(DimensionScore, method="function_calling")
 
     prompt = f"""
         You are evaluating the candidate's additional positive signals.
@@ -267,7 +285,7 @@ def research_agent(state):
         ]
     )
 
-    structured_llm = llm.with_structured_output(
+    structured_llm = score_llm.with_structured_output(
         DimensionScore,
         method="function_calling",
     )
@@ -410,6 +428,9 @@ def draft_email(state: HireGraphState):
     score_summary = state.get("score_summary", {})
     skill_evaluations = state.get("skill_evaluations", [])
     dimension_evaluations = state.get("dimension_evaluations", [])
+    critic_feedback = state.get("critic_feedback", "")
+
+    candidate_name = state.get("candidate_name", "Candidate")
 
     prompt = f"""
     You are an HR assistant.
@@ -418,11 +439,16 @@ def draft_email(state: HireGraphState):
 
     Rules:
     - Be professional and warm.
+    - Address the candidate by name.
     - Do not mention internal scores.
+    - Do not reveal private evaluation details.
     - Mention that their background appears aligned with the role.
     - Keep it under 180 words.
     - Do not invent interview date or time.
     - Ask them to share availability.
+
+    Candidate name:
+    {candidate_name}
 
     Job title:
     {jd_requirements.get("job_title")}
@@ -438,18 +464,31 @@ def draft_email(state: HireGraphState):
 
     Score summary:
     {score_summary}
+
+    Previous critic feedback, if any:
+    {critic_feedback}
 """
 
-    response = llm.invoke(prompt)
+    response = email_llm.invoke(prompt)
 
     return {
-        "draft_email": response.content
+        "sender_email": "Hiring_Team",
+        "draft_email": response.content,
+        "audit_trail": [
+            {
+                "node": "draft_email",
+                "status": "completed",
+                "message": "Interview invitation email drafted.",
+            }
+        ],
     }
 
 ### Node to draft rejection email based on recommendation
 
 def draft_rejection(state: HireGraphState):
     jd_requirements = state["jd_requirements"]
+
+    candidate_name = state.get("candidate_name", "Candidate")
 
     
     prompt = f"""
@@ -465,6 +504,9 @@ def draft_rejection(state: HireGraphState):
     - Keep it under 150 words.
     - Encourage them to apply again in the future.
 
+    Candidate name:
+    {candidate_name}
+
     Job title:
     {jd_requirements.get("job_title")}
 
@@ -472,10 +514,18 @@ def draft_rejection(state: HireGraphState):
     {state.get("recommendation_reasoning")}
     """
 
-    response = llm.invoke(prompt)
+    response = email_llm.invoke(prompt)
 
     return {
-        "rejection_email": response.content
+        "sender_email": "Hiring_Team",
+        "rejection_email": response.content,
+        "audit_trail": [
+            {
+                "node": "draft_rejection",
+                "status": "completed",
+                "message": "Rejection email drafted.",
+            }
+        ],
     }
 
 ### Human review node for borderline cases
@@ -574,3 +624,153 @@ def recommendation_router(
             "recommendation_reasoning": reasoning,
         },
     )
+
+# Critic node for evaluating the drafted email and providing feedback for improvement
+
+def critic_loop(
+    state: HireGraphState,
+) -> Command[Literal["draft_email", "send_email_update_ats", "human_review"]]:
+
+    attempts = state.get("critic_attempts", 0)
+
+    structured_llm = critic_llm.with_structured_output(
+        EmailCritique,
+        method="function_calling",
+    )
+
+    prompt = f"""
+    You are reviewing an interview invitation email before it is sent.
+
+    Check whether the email is:
+    - Professional
+    - Warm
+    - Clear
+    - Free from internal scores
+    - Free from harsh or private evaluation details
+    - Under 180 words
+    - Asking the candidate to share availability
+    - Suitable to send from a hiring team
+
+    Email body:
+    {state.get("draft_email")}
+
+    Return approved=true only if it is ready to send.
+"""
+
+    result = structured_llm.invoke(prompt)
+
+    if result.approved:
+        return Command(
+            goto="send_email_update_ats",
+            update={
+                "email_approved_by_critic": True,
+                "critic_feedback": result.feedback,
+                "critic_attempts": attempts + 1,
+                "audit_trail": [
+                    {
+                        "node": "critic_loop",
+                        "status": "approved",
+                        "message": result.feedback,
+                    }
+                ],
+            },
+        )
+
+    if attempts >= 2:
+        return Command(
+            goto="human_review",
+            update={
+                "email_approved_by_critic": False,
+                "critic_feedback": result.feedback,
+                "critic_attempts": attempts + 1,
+                "audit_trail": [
+                    {
+                        "node": "critic_loop",
+                        "status": "escalated",
+                        "message": "Email failed critic review after 3 attempts.",
+                    }
+                ],
+            },
+        )
+
+    return Command(
+        goto="draft_email",
+        update={
+            "email_approved_by_critic": False,
+            "critic_feedback": result.feedback,
+            "critic_attempts": attempts + 1,
+            "audit_trail": [
+                {
+                    "node": "critic_loop",
+                    "status": "retry",
+                    "message": result.feedback,
+                }
+            ],
+        },
+    )
+
+### Node to send email and update ATS
+
+def send_email_update_ats(state: HireGraphState):
+    """
+    Mock external action:
+    - send email
+    - update ATS
+    """
+
+    print("[OK] Sending email to:", state.get("candidate_email"))
+    print("[OK] Updating ATS for:", state.get("candidate_name"))
+
+    return {
+        "email_sent": True,
+        "ats_updated": True,
+        "audit_trail": [
+            {
+                "node": "send_email_update_ats",
+                "status": "completed",
+                "message": "Email sent and ATS updated.",
+            }
+        ],
+    }
+
+# Node for logging rejection
+def log_rejection(state: HireGraphState):
+    print("[OK] Logging rejection for:", state.get("candidate_name"))
+
+    return {
+        "rejection_logged": True,
+        "audit_trail": [
+            {
+                "node": "log_rejection",
+                "status": "completed",
+                "message": "Rejection decision logged.",
+            }
+        ],
+    }
+
+### Node for compensation when the retries are exhausted
+def compensate(state: HireGraphState):
+    print("[WARN] Running compensation flow")
+
+    return {
+        "compensation_done": True,
+        "audit_trail": [
+            {
+                "node": "compensate",
+                "status": "completed",
+                "message": "Compensation completed. Rollback/alert action recorded.",
+            }
+        ],
+    }
+
+### Final Audit trial node
+def finalize(state: HireGraphState):
+    return {
+        "audit_trail": [
+            {
+                "node": "finalize",
+                "status": "completed",
+                "message": "Final audit trail written.",
+            }
+        ]
+    }

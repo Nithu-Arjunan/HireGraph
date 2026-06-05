@@ -65,6 +65,15 @@ def extract_candidate_name(resume_text: str) -> str:
     lines = [line.strip("# ").strip() for line in resume_text.splitlines() if line.strip()]
     return lines[0] if lines else "candidate"
 
+def extract_email_from_text(text: str) -> str | None:
+    pattern = r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}"
+    match = re.search(pattern, text)
+
+    if match:
+        return match.group(0)
+
+    return None
+
 
 def extract_github_url(resume_text: str) -> str | None:
     pattern = r"(https?://)?(www\.)?github\.com/[A-Za-z0-9_.-]+"

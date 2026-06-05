@@ -16,13 +16,11 @@ class JDRequirements(BaseModel):
 
     required_skills: list[str] = Field(
         description=(
-            "Hard requirements from the JD. Include concrete tools, technologies, "
-        "frameworks, programming languages, databases, platforms, and specific "
-        "technical sub-skills. For example, if the JD says SQL fluency with "
-        "window functions, CTEs, and joins, include SQL, window functions, CTEs, "
-        "and joins as separate items. Preserve alternatives like 'Python or R' "
-        "as one item when the JD accepts either."
-    
+        "Core required skills from the JD. Extract broad, scorable skills only. "
+        "Do not split subtopics into separate skills. For example, if the JD says "
+        "'SQL fluency with window functions, CTEs, and joins', return only 'SQL fluency' "
+        "or 'SQL', not separate items for window functions, CTEs, and joins. "
+        "Keep alternatives like 'Python or R' as one skill."
         )
     )
 
@@ -99,4 +97,14 @@ class RecommendationDecision(BaseModel):
     )
     recommendation_reasoning: str = Field(
         description="Brief explanation for the recommendation based on score and evidence."
+    )
+
+### Critic schema for email drafting ############
+
+class EmailCritique(BaseModel):
+    approved: bool = Field(
+        description="Whether the email is good enough to send."
+    )
+    feedback: str = Field(
+        description="Short feedback explaining what should be improved."
     )

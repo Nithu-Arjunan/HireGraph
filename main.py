@@ -67,9 +67,33 @@ def main():
         "recommendation": result.get("recommendation"),
         "human_review_decision": result.get("human_review_decision"),
         "final_score": result.get("final_score"),
-        "draft_email": result.get("draft_email"),
-        "rejection_email": result.get("rejection_email"),
+        "candidate_email": result.get("candidate_email"),
+        "sender_email": result.get("sender_email"),
     })
+
+    print("\n========== RECOMMENDATION ==========")
+    print(result.get("recommendation"))
+    print(result.get("recommendation_reasoning"))
+
+    print("\n========== EMAIL ==========")
+    print("To:", result.get("candidate_email"))
+    print("From:", result.get("sender_email"))
+    print(result.get("draft_email"))
+
+    print("\n========== REJECTION ==========")
+    print("To:", result.get("candidate_email"))
+    print("From:", result.get("sender_email"))
+    print(result.get("rejection_email"))
+
+    print("\n========== ACTION STATUS ==========")
+    print("email_sent:", result.get("email_sent"))
+    print("ats_updated:", result.get("ats_updated"))
+    print("rejection_logged:", result.get("rejection_logged"))
+    print("compensation_done:", result.get("compensation_done"))
+
+    print("\n========== AUDIT TRAIL ==========")
+    for item in result.get("audit_trail", []):
+        print(item)
 
     ### For visualization
     from src.graph_print import save_graph_png, show_graph

@@ -24,7 +24,7 @@ class ExtractJDRequirementsTests(unittest.TestCase):
 
         llm = RecordingLLM()
 
-        with patch("src.node.llm", llm):
+        with patch("src.node.extract_llm", llm):
             extract_jd_requirements({"raw_jd": "Analyze business data."})
 
         self.assertEqual(llm.method, "function_calling")
@@ -32,9 +32,21 @@ class ExtractJDRequirementsTests(unittest.TestCase):
 
 class LLMConfigurationTests(unittest.TestCase):
     def test_retries_transient_rate_limits(self):
-        from src.node import llm
+        from src.node import critic_llm, email_llm, extract_llm, score_llm
 
-        self.assertGreaterEqual(llm.max_retries, 5)
+        for llm in (extract_llm, score_llm, email_llm, critic_llm):
+            self.assertGreaterEqual(llm.max_retries, 5)
+
+
+class IngestResumeJDTests(unittest.TestCase):
+    def test_missing_resume_path_records_error_without_candidate_extraction_crash(self):
+        from src.node import ingest_resume_jd
+
+        result = ingest_resume_jd({"resume_path": "missing.md"})
+
+        self.assertIn("File not found: missing.md", result["errors"])
+        self.assertEqual(result["candidate_name"], "candidate")
+        self.assertIsNone(result["candidate_email"])
 
 
 class ExperienceScorerTests(unittest.TestCase):
@@ -66,7 +78,7 @@ class ExperienceScorerTests(unittest.TestCase):
 
         llm = RecordingLLM()
 
-        with patch("src.node.llm", llm):
+        with patch("src.node.score_llm", llm):
             experience_scorer(
                 {
                     "resume_text": "SQL analyst",
@@ -119,7 +131,7 @@ class SkillWorkerTests(unittest.TestCase):
 
         llm = RecordingLLM()
 
-        with patch("src.node.llm", llm):
+        with patch("src.node.score_llm", llm):
             skill_worker({"resume_text": "SQL", "skill": "SQL"})
 
         self.assertEqual(llm.method, "function_calling")
