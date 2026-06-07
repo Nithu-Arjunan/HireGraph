@@ -1,10 +1,19 @@
 import ast
+import logging
 import smtplib
 from email.message import EmailMessage
 
 from src.state import HireGraphState, SkillWorkerInput
 from src.utils import extract_text_from_file
-from src.schema import JDRequirements, SkillScore,DimensionScore,EmailCritique
+from src.schema import (
+    JDRequirements,
+    ParsedResume,
+    NormalizedResumeSkills,
+    YearsOfExperience,
+    SkillScore,
+    DimensionScore,
+    EmailCritique,
+)
 from langchain_openai import ChatOpenAI
 from langgraph.types import Send, Command, Literal, interrupt
 from langchain_core.messages import AIMessage, ToolMessage
@@ -71,6 +80,131 @@ def ingest_resume_jd(state: HireGraphState) -> HireGraphState:
     state.setdefault("compensation_done", False)
 
     return state
+
+
+def parse_resume(state: HireGraphState) -> HireGraphState:
+    resume_text = state.get("raw_resume")
+
+    if not resume_text:
+        raise ValueError(f"Resume text is missing. Ingestion errors: {state.get('errors', [])}")
+
+    structured_llm = extract_llm.with_structured_output(
+        ParsedResume,
+        method="function_calling",
+    )
+
+    prompt = f"""
+    You are a technical recruiting analyst.
+
+    Parse the resume into structured fields for downstream scoring.
+
+    Rules:
+    - Use only evidence in the resume.
+    - Keep skills broad and scorable.
+    - Keep roles, education, and projects concise.
+    - If a field is unclear, use an empty list or a short unknown marker.
+
+    Resume:
+    {resume_text}
+    """
+
+    result = structured_llm.invoke(prompt)
+    parsed_resume = result.model_dump()
+
+    return {
+        "parsed_resume": parsed_resume,
+        "messages": [
+            AIMessage(content=f"Parsed resume: {parsed_resume}")
+        ],
+        "audit_trail": [
+            {
+                "node": "parse_resume",
+                "status": "completed",
+                "message": "Resume parsed into structured fields.",
+            }
+        ],
+    }
+
+
+def normalize_resume_skills(state: HireGraphState) -> HireGraphState:
+    parsed_resume = state.get("parsed_resume", {})
+
+    structured_llm = extract_llm.with_structured_output(
+        NormalizedResumeSkills,
+        method="function_calling",
+    )
+
+    prompt = f"""
+    Normalize the resume skills into canonical, deduplicated skill names.
+
+    Rules:
+    - Preserve only skills supported by the parsed resume.
+    - Merge aliases into common names, such as PostgreSQL and SQL into SQL when appropriate.
+    - Keep broad skill categories useful for matching a job description.
+
+    Parsed resume:
+    {parsed_resume}
+    """
+
+    result = structured_llm.invoke(prompt)
+    normalized = result.model_dump().get("normalized_skills", [])
+
+    return {
+        "normalized_skills": normalized,
+        "messages": [
+            AIMessage(content=f"Normalized resume skills: {normalized}")
+        ],
+        "audit_trail": [
+            {
+                "node": "normalize_resume_skills",
+                "status": "completed",
+                "message": "Resume skills normalized.",
+            }
+        ],
+    }
+
+
+def extract_years_experience(state: HireGraphState) -> HireGraphState:
+    parsed_resume = state.get("parsed_resume", {})
+    normalized_skills = state.get("normalized_skills", [])
+
+    structured_llm = extract_llm.with_structured_output(
+        YearsOfExperience,
+        method="function_calling",
+    )
+
+    prompt = f"""
+    Estimate years of experience from the parsed resume.
+
+    Rules:
+    - Use only resume evidence.
+    - Estimate total years and years by skill or work area.
+    - For projects or internships, be conservative and explain the reasoning.
+    - If exact dates are absent, infer cautiously from role descriptions.
+
+    Parsed resume:
+    {parsed_resume}
+
+    Normalized skills:
+    {normalized_skills}
+    """
+
+    result = structured_llm.invoke(prompt)
+    years = result.model_dump()
+
+    return {
+        "years_of_experience": years,
+        "messages": [
+            AIMessage(content=f"Extracted years of experience: {years}")
+        ],
+        "audit_trail": [
+            {
+                "node": "extract_years_experience",
+                "status": "completed",
+                "message": "Years of experience extracted.",
+            }
+        ],
+    }
 
 
 def extract_jd_requirements(state: HireGraphState) -> HireGraphState:
@@ -164,7 +298,7 @@ def skill_worker(state: SkillWorkerInput):
 #### Function for parallel workers for evaluating education,experience and signal
 
 def education_scorer(state: HireGraphState):
-    print("[OK] Running education_scorer")
+    logging.info("[OK] Running education_scorer")
     jd_requirements = state["jd_requirements"]
     resume_text = state["resume_text"]
 
@@ -193,12 +327,13 @@ def education_scorer(state: HireGraphState):
         {resume_text}
         """
     result = structured_llm.invoke(prompt)
-    print("[OK] education_scorer result:", result.model_dump())
+    
     return {
         "dimension_evaluations": [result.model_dump()]
     }
 
 def experience_scorer(state: HireGraphState):
+    logging.info("[OK] Running experience_scorer")
     jd_requirements = state["jd_requirements"]
     resume_text = state["resume_text"]
 
@@ -231,12 +366,13 @@ def experience_scorer(state: HireGraphState):
 
         """
     result = structured_llm.invoke(prompt)
-
+    
     return {
         "dimension_evaluations": [result.model_dump()]
     }
 
 def signal_scorer(state: HireGraphState):
+    logging.info("[OK] Running signal_scorer")
     resume_text = state["resume_text"]
     jd_requirements = state["jd_requirements"]
 
@@ -284,7 +420,7 @@ def signal_scorer(state: HireGraphState):
 
 
 def research_agent(state):
-    print("[OK] Running research_agent")
+    logging.info("[OK] Running research_agent")
 
     resume_text = state["resume_text"]
 
@@ -361,7 +497,7 @@ def normalize_tool_error(content) -> str:
 def research_scorer(
     state: HireGraphState,
 ) -> Command[Literal["aggregate_scores", "repair_research_query"]]:
-    print("[OK] Running research_scorer")
+    logging.info("[OK] Running research_scorer")
 
     tool_messages = [
         message
@@ -473,8 +609,7 @@ def research_scorer(
 
     result = structured_llm.invoke(prompt)
 
-    print("[OK] research_scorer result:", result.model_dump())
-
+   
     return Command(
         goto="aggregate_scores",
         update={
@@ -558,7 +693,152 @@ def repair_research_query(
     )
 
 
+def _scoring_weights_for_seniority(seniority: str) -> dict[str, float]:
+    weights_by_seniority = {
+        "junior": {
+            "skill": 1.0,
+            "experience": 0.7,
+            "education": 1.0,
+            "signal": 1.2,
+            "research": 1.1,
+        },
+        "mid": {
+            "skill": 1.0,
+            "experience": 1.0,
+            "education": 0.9,
+            "signal": 1.0,
+            "research": 1.0,
+        },
+        "senior": {
+            "skill": 1.0,
+            "experience": 1.3,
+            "education": 0.8,
+            "signal": 1.0,
+            "research": 1.1,
+        },
+        "executive": {
+            "skill": 0.8,
+            "experience": 1.2,
+            "education": 0.7,
+            "signal": 1.4,
+            "research": 0.9,
+        },
+        "unknown": {
+            "skill": 1.0,
+            "experience": 1.0,
+            "education": 0.9,
+            "signal": 1.0,
+            "research": 1.0,
+        },
+    }
+    return weights_by_seniority.get(seniority, weights_by_seniority["unknown"])
+
+
+def _seniority_classification(seniority: str, scoring_profile: str) -> dict:
+    return {
+        "seniority": seniority,
+        "scoring_profile": scoring_profile,
+        "scoring_weights": _scoring_weights_for_seniority(seniority),
+        "reason": "Routed from JDRequirements.seniority.",
+    }
+
+
+def seniority_router(
+    state: HireGraphState,
+) -> Command[
+    Literal[
+        "junior_scoring_profile",
+        "mid_scoring_profile",
+        "senior_scoring_profile",
+        "executive_scoring_profile",
+    ]
+]:
+    seniority = state.get("jd_requirements", {}).get("seniority", "unknown")
+    route_map = {
+        "junior": "junior_scoring_profile",
+        "mid": "mid_scoring_profile",
+        "senior": "senior_scoring_profile",
+        "executive": "executive_scoring_profile",
+        "unknown": "mid_scoring_profile",
+    }
+    scoring_profile = route_map.get(seniority, "mid_scoring_profile")
+
+    return Command(
+        goto=scoring_profile,
+        update={
+            "classification": _seniority_classification(
+                seniority,
+                scoring_profile,
+            ),
+            "audit_trail": [
+                {
+                    "node": "seniority_router",
+                    "status": "completed",
+                    "message": (
+                        f"Routed {seniority} role to {scoring_profile}."
+                    ),
+                }
+            ],
+        },
+    )
+
+
+def _scoring_profile_node(
+    state: HireGraphState,
+    seniority: str,
+    scoring_profile: str,
+) -> Command[Literal["start_parallel_scoring"]]:
+    state_seniority = state.get("jd_requirements", {}).get("seniority", seniority)
+
+    return Command(
+        goto="start_parallel_scoring",
+        update={
+            "classification": _seniority_classification(
+                state_seniority,
+                scoring_profile,
+            ),
+            "audit_trail": [
+                {
+                    "node": scoring_profile,
+                    "status": "completed",
+                    "message": (
+                        f"Applied {scoring_profile} before parallel scoring."
+                    ),
+                }
+            ],
+        },
+    )
+
+
+def junior_scoring_profile(
+    state: HireGraphState,
+) -> Command[Literal["start_parallel_scoring"]]:
+    return _scoring_profile_node(state, "junior", "junior_scoring_profile")
+
+
+def mid_scoring_profile(
+    state: HireGraphState,
+) -> Command[Literal["start_parallel_scoring"]]:
+    return _scoring_profile_node(state, "mid", "mid_scoring_profile")
+
+
+def senior_scoring_profile(
+    state: HireGraphState,
+) -> Command[Literal["start_parallel_scoring"]]:
+    return _scoring_profile_node(state, "senior", "senior_scoring_profile")
+
+
+def executive_scoring_profile(
+    state: HireGraphState,
+) -> Command[Literal["start_parallel_scoring"]]:
+    return _scoring_profile_node(state, "executive", "executive_scoring_profile")
+
+
 ### Function to call both fixed and dynamic skill workers
+
+def start_parallel_scoring_gate(state: HireGraphState):
+    return {}
+
 
 def start_parallel_scoring(state: HireGraphState):
     required_skills = state["jd_requirements"]["required_skills"]
@@ -615,25 +895,67 @@ def start_parallel_scoring(state: HireGraphState):
 def aggregate_scores(state: HireGraphState):
     skill_evaluations = state.get("skill_evaluations", [])
     dimension_evaluations = state.get("dimension_evaluations", [])
+    classification = state.get("classification", {})
+    scoring_weights = classification.get("scoring_weights", {})
 
     skill_scores = [item["score"] for item in skill_evaluations]
     dimension_scores = [item["score"] for item in dimension_evaluations]
 
-    all_scores = skill_scores + dimension_scores
+    weighted_scores = []
 
-    if not all_scores:
+    for item in skill_evaluations:
+        weight = scoring_weights.get("skill", 1.0)
+        weighted_scores.append(
+            {
+                "type": "skill",
+                "name": item.get("skill", "unknown"),
+                "score": item["score"],
+                "weight": weight,
+                "weighted_score": round(item["score"] * weight, 2),
+            }
+        )
+
+    for item in dimension_evaluations:
+        dimension = item.get("dimension", "unknown")
+        weight = scoring_weights.get(dimension, 1.0)
+        weighted_scores.append(
+            {
+                "type": "dimension",
+                "name": dimension,
+                "score": item["score"],
+                "weight": weight,
+                "weighted_score": round(item["score"] * weight, 2),
+            }
+        )
+
+    if not weighted_scores:
         final_score = 0
     else:
-        final_score = round(sum(all_scores) / len(all_scores), 2)
+        weighted_total = sum(item["weighted_score"] for item in weighted_scores)
+        weight_total = sum(item["weight"] for item in weighted_scores)
+        final_score = round(weighted_total / weight_total, 2) if weight_total else 0
+
+    score_summary = {
+        "skill_count": len(skill_evaluations),
+        "dimension_count": len(dimension_evaluations),
+        "skill_average": round(sum(skill_scores) / len(skill_scores), 2) if skill_scores else 0,
+        "dimension_average": round(sum(dimension_scores) / len(dimension_scores), 2) if dimension_scores else 0,
+        "weighted_average": final_score,
+    }
+
+    scorecard = {
+        "classification": classification,
+        "skill_evaluations": skill_evaluations,
+        "dimension_evaluations": dimension_evaluations,
+        "weighted_scores": weighted_scores,
+        "score_summary": score_summary,
+        "final_score": final_score,
+    }
 
     return {
         "final_score": final_score,
-        "score_summary": {
-            "skill_count": len(skill_evaluations),
-            "dimension_count": len(dimension_evaluations),
-            "skill_average": round(sum(skill_scores) / len(skill_scores), 2) if skill_scores else 0,
-            "dimension_average": round(sum(dimension_scores) / len(dimension_scores), 2) if dimension_scores else 0,
-        },
+        "score_summary": score_summary,
+        "scorecard": scorecard,
         "messages": [
             AIMessage(
                 content=(
@@ -1030,9 +1352,7 @@ def send_email_update_ats(
 
 # Node for logging rejection
 def log_rejection(state: HireGraphState):
-    print("[OK] Logging rejection for:", state.get("candidate_name"))
-
-    return {
+        return {
         "rejection_logged": True,
         "audit_trail": [
             {
@@ -1045,7 +1365,7 @@ def log_rejection(state: HireGraphState):
 
 ### Node for compensation when the retries are exhausted
 def compensate(state: HireGraphState):
-    print("[WARN] Running compensation flow")
+    logging.info("[WARN] Running compensation flow")
 
     return {
         "compensation_done": True,

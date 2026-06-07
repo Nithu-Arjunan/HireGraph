@@ -11,10 +11,14 @@ class HireGraphState(TypedDict, total=False):
     raw_resume: str
     raw_jd: str
     resume_text: str
+    parsed_resume: dict[str, Any]
+    normalized_skills: list[str]
+    years_of_experience: dict[str, Any]
 
     errors: list[str]
 
     jd_requirements: dict[str, Any]
+    classification: dict[str, Any]
 
     # Orchestration fields
     skill_evaluations:Annotated[list[dict[str,Any]],operator.add]
@@ -31,6 +35,7 @@ class HireGraphState(TypedDict, total=False):
     #Final score
     final_score: float
     score_summary: dict[str, Any]
+    scorecard: dict[str, Any]
 
     # Recommendation fields
     recommendation: Literal["advance", "borderline", "reject"]

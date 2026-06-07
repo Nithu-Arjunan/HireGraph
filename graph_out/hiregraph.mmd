@@ -4,15 +4,26 @@ config:
     curve: linear
 ---
 graph TD;
-	__start__(<p>__start__</p>)
+	__start__([<p>__start__</p>]):::first
 	ingest_resume_jd(ingest_resume_jd)
+	parse_resume(parse_resume)
+	normalize_resume_skills(normalize_resume_skills)
+	extract_years_experience(extract_years_experience)
 	extract_jd_requirements(extract_jd_requirements)
+	seniority_router(seniority_router)
+	junior_scoring_profile(junior_scoring_profile)
+	mid_scoring_profile(mid_scoring_profile)
+	senior_scoring_profile(senior_scoring_profile)
+	executive_scoring_profile(executive_scoring_profile)
 	skill_worker(skill_worker)
 	start_parallel_scoring(start_parallel_scoring)
 	experience_scorer(experience_scorer)
 	education_scorer(education_scorer)
 	signal_scorer(signal_scorer)
 	research_agent(research_agent)
+	research_tools(research_tools)
+	research_scorer(research_scorer)
+	repair_research_query(repair_research_query)
 	aggregate_scores(aggregate_scores)
 	recommendation_router(recommendation_router)
 	draft_email(draft_email)
@@ -23,32 +34,51 @@ graph TD;
 	log_rejection(log_rejection)
 	compensate(compensate)
 	finalize(finalize)
-	__end__(<p>__end__</p>)
+	__end__([<p>__end__</p>]):::last
 	__start__ --> ingest_resume_jd;
 	aggregate_scores --> recommendation_router;
+	compensate --> finalize;
 	critic_loop -.-> draft_email;
 	critic_loop -.-> human_review;
 	critic_loop -.-> send_email_update_ats;
 	draft_email --> critic_loop;
 	draft_rejection --> log_rejection;
 	education_scorer --> aggregate_scores;
+	executive_scoring_profile -.-> start_parallel_scoring;
 	experience_scorer --> aggregate_scores;
-	extract_jd_requirements -.-> education_scorer;
-	extract_jd_requirements -.-> experience_scorer;
-	extract_jd_requirements -.-> research_agent;
-	extract_jd_requirements -.-> signal_scorer;
-	extract_jd_requirements -.-> skill_worker;
+	extract_jd_requirements --> seniority_router;
+	extract_years_experience --> extract_jd_requirements;
 	human_review -.-> draft_email;
 	human_review -.-> draft_rejection;
-	ingest_resume_jd --> extract_jd_requirements;
+	ingest_resume_jd --> parse_resume;
+	junior_scoring_profile -.-> start_parallel_scoring;
 	log_rejection --> finalize;
+	mid_scoring_profile -.-> start_parallel_scoring;
+	normalize_resume_skills --> extract_years_experience;
+	parse_resume --> normalize_resume_skills;
 	recommendation_router -.-> draft_email;
 	recommendation_router -.-> draft_rejection;
 	recommendation_router -.-> human_review;
-	research_agent --> aggregate_scores;
-	send_email_update_ats --> finalize;
+	repair_research_query -.-> aggregate_scores;
+	repair_research_query -.-> research_agent;
+	research_agent --> research_tools;
+	research_scorer --> aggregate_scores;
+	research_scorer -.-> repair_research_query;
+	research_tools --> research_scorer;
+	send_email_update_ats -.-> compensate;
+	send_email_update_ats -.-> finalize;
+	senior_scoring_profile -.-> start_parallel_scoring;
+	seniority_router -.-> executive_scoring_profile;
+	seniority_router -.-> junior_scoring_profile;
+	seniority_router -.-> mid_scoring_profile;
+	seniority_router -.-> senior_scoring_profile;
 	signal_scorer --> aggregate_scores;
 	skill_worker --> aggregate_scores;
+	start_parallel_scoring -.-> education_scorer;
+	start_parallel_scoring -.-> experience_scorer;
+	start_parallel_scoring -.-> research_agent;
+	start_parallel_scoring -.-> signal_scorer;
+	start_parallel_scoring -.-> skill_worker;
 	finalize --> __end__;
 	classDef default fill:#f2f0ff,line-height:1.2
 	classDef first fill-opacity:0

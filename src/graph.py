@@ -5,7 +5,16 @@ from langgraph.prebuilt import ToolNode
 
 from src.node import (
     ingest_resume_jd,
+    parse_resume,
+    normalize_resume_skills,
+    extract_years_experience,
     extract_jd_requirements, 
+    seniority_router,
+    junior_scoring_profile,
+    mid_scoring_profile,
+    senior_scoring_profile,
+    executive_scoring_profile,
+    start_parallel_scoring_gate,
     skill_worker,
     start_parallel_scoring,
     experience_scorer,
@@ -34,13 +43,30 @@ def build_hiregraph():
 
     # 1. Add nodes for each step in the hiring evaluation process
     builder.add_node("ingest_resume_jd", ingest_resume_jd)
+    builder.add_node("parse_resume", parse_resume, retry_policy=RetryPolicy(
+        max_attempts=3,
+        initial_interval=0.05, retry_on=ConnectionError)
+    )
+    builder.add_node("normalize_resume_skills", normalize_resume_skills, retry_policy=RetryPolicy(
+        max_attempts=3,
+        initial_interval=0.05, retry_on=ConnectionError)
+    )
+    builder.add_node("extract_years_experience", extract_years_experience, retry_policy=RetryPolicy(
+        max_attempts=3,
+        initial_interval=0.05, retry_on=ConnectionError)
+    )
     builder.add_node("extract_jd_requirements", extract_jd_requirements, retry_policy=RetryPolicy(
         max_attempts=3,
         initial_interval=0.05, retry_on=ConnectionError)
     )
+    builder.add_node("seniority_router", seniority_router)
+    builder.add_node("junior_scoring_profile", junior_scoring_profile)
+    builder.add_node("mid_scoring_profile", mid_scoring_profile)
+    builder.add_node("senior_scoring_profile", senior_scoring_profile)
+    builder.add_node("executive_scoring_profile", executive_scoring_profile)
 
     builder.add_node("skill_worker", skill_worker)
-    builder.add_node("start_parallel_scoring", start_parallel_scoring)
+    builder.add_node("start_parallel_scoring", start_parallel_scoring_gate)
     builder.add_node("experience_scorer", experience_scorer)
     builder.add_node("education_scorer", education_scorer)
     builder.add_node("signal_scorer", signal_scorer)
@@ -76,10 +102,14 @@ def build_hiregraph():
 
     # 2. Main sequential flow
     builder.add_edge(START, "ingest_resume_jd")
-    builder.add_edge("ingest_resume_jd", "extract_jd_requirements")
+    builder.add_edge("ingest_resume_jd", "parse_resume")
+    builder.add_edge("parse_resume", "normalize_resume_skills")
+    builder.add_edge("normalize_resume_skills", "extract_years_experience")
+    builder.add_edge("extract_years_experience", "extract_jd_requirements")
+    builder.add_edge("extract_jd_requirements", "seniority_router")
     # 3. Parallel fan-out
     builder.add_conditional_edges(
-        "extract_jd_requirements",
+        "start_parallel_scoring",
         start_parallel_scoring,
         [
             "skill_worker",

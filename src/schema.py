@@ -1,7 +1,7 @@
 
 from typing import Literal
 from pydantic import BaseModel, Field
-import re
+
 
 #### Schema for JD requirements extraction ############
 
@@ -51,6 +51,50 @@ class JDRequirements(BaseModel):
     domain_keywords: list[str] = Field(
         default_factory=list,
         description="Industry or domain-specific keywords such as finance, healthcare, AI agents, RAG, data pipelines, newsletters, etc."
+    )
+
+
+class ParsedResume(BaseModel):
+    candidate_name: str = Field(
+        description="Candidate name if present in the resume."
+    )
+    headline: str = Field(
+        description="Brief professional headline or role summary inferred from the resume."
+    )
+    skills: list[str] = Field(
+        default_factory=list,
+        description="Skills explicitly present in the resume."
+    )
+    roles: list[str] = Field(
+        default_factory=list,
+        description="Work, internship, project, or volunteer roles listed in the resume."
+    )
+    education: list[str] = Field(
+        default_factory=list,
+        description="Education, certifications, or training listed in the resume."
+    )
+    projects: list[str] = Field(
+        default_factory=list,
+        description="Projects, portfolio work, open-source work, or relevant practical experience."
+    )
+
+
+class NormalizedResumeSkills(BaseModel):
+    normalized_skills: list[str] = Field(
+        description="Canonical skill names deduplicated from the parsed resume."
+    )
+
+
+class YearsOfExperience(BaseModel):
+    total_years: float = Field(
+        description="Estimated total professional or project experience in years."
+    )
+    years_by_skill: dict[str, float] = Field(
+        default_factory=dict,
+        description="Estimated years of experience by normalized skill or area."
+    )
+    reasoning: str = Field(
+        description="Short explanation of how the years were estimated from resume evidence."
     )
 
 

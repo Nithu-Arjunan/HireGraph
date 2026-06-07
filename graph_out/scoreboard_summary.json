@@ -1,0 +1,535 @@
+{
+  "graph_png": "graph_out/hiregraph.png",
+  "graph_mmd": "graph_out/hiregraph.mmd",
+  "scoreboard": {
+    "total": 3,
+    "advance": 1,
+    "reject": 1,
+    "borderline": 1,
+    "average_score": 5.94
+  },
+  "decisions": [
+    {
+      "scenario": "strong",
+      "label": "Strong Candidate",
+      "candidate_name": "Priya Ramanathan",
+      "candidate_email": "priya.ramanathan@example.com",
+      "elapsed_ms": 35991,
+      "run_status": "completed",
+      "interrupt": null,
+      "decision": {
+        "scorecard": {
+          "final_score": 7.44,
+          "summary": {
+            "skill_count": 4,
+            "dimension_count": 4,
+            "skill_average": 9.0,
+            "dimension_average": 5.25,
+            "weighted_average": 7.44
+          },
+          "skill_scores": [
+            {
+              "name": "SQL fluency",
+              "score": 10,
+              "evidence": "Experience with PostgreSQL in multiple roles, including building services and handling data.",
+              "reasoning": "The candidate has direct experience using SQL through PostgreSQL in their roles at Mango Logistics and Tinder, indicating strong fluency."
+            },
+            {
+              "name": "Python or R",
+              "score": 10,
+              "evidence": "Built the carrier billing reconciliation service in Python and PostgreSQL. Authored the team's async Python style guide; ran four internal workshops. Worked on payments backend in Python and PostgreSQL.",
+              "reasoning": "The resume provides strong direct evidence of extensive experience with Python, including building services and authoring style guides, which justifies a score of 10."
+            },
+            {
+              "name": "data wrangling",
+              "score": 8,
+              "evidence": "Built the carrier billing reconciliation service in Python and PostgreSQL, which involves data manipulation and transformation.",
+              "reasoning": "The candidate has experience in building a service that likely required significant data wrangling, as it involves reconciling billing data, which typically requires cleaning, transforming, and aggregating data."
+            },
+            {
+              "name": "strong communication",
+              "score": 8,
+              "evidence": "Speaker at PyCon US 2023 and ran internal workshops.",
+              "reasoning": "The candidate has demonstrated strong communication skills by speaking at a prominent conference (PyCon US 2023) and conducting internal workshops, indicating the ability to convey complex technical concepts effectively."
+            }
+          ],
+          "dimension_scores": [
+            {
+              "name": "experience",
+              "score": 0,
+              "evidence": "The candidate has 8 years of experience as a backend engineer, which does not align with the job description's requirement of 0 to 2 years of professional experience in an analytical role.",
+              "reasoning": "The candidate's extensive experience as a backend engineer does not meet the job description's requirement for a candidate with 0 to 2 years of experience in an analytical role."
+            },
+            {
+              "name": "education",
+              "score": 5,
+              "evidence": "B.S. Computer Science, Carnegie Mellon University (2016).",
+              "reasoning": "The candidate has a B.S. in Computer Science, which is not directly in statistics, economics, or mathematics, but is related to the technical skills required for data analysis roles. The job description accepts bootcamp grads and self-taught analysts, indicating some flexibility in educational background. Therefore, a score of 5 is appropriate as the education is partially relevant."
+            },
+            {
+              "name": "signal",
+              "score": 9,
+              "evidence": "Priya has contributed to open-source projects like `aiokafka` and `temporalio/sdk-python`, demonstrating strong engagement with the developer community. She has also spoken at PyCon US 2023, showcasing her communication skills and ability to present complex topics effectively. Additionally, her blog features monthly posts on async Python and event-driven systems, indicating a strong domain interest and commitment to continuous learning. Her leadership experience includes mentoring engineers and running design review forums, which aligns well with the JD's emphasis on collaboration and learning.",
+              "reasoning": "Priya exhibits very strong positive signals through her open-source contributions, public speaking, and active blogging, all of which highlight her expertise and passion for her field. Her leadership roles and mentoring experience further reinforce her initiative and ability to communicate effectively, making her a standout candidate in the context of the JD."
+            },
+            {
+              "name": "research",
+              "score": 7,
+              "evidence": "The candidate has experience with SQL and Python, as well as data wrangling through their work with PostgreSQL and Python services. They have also contributed to open source projects like `aiokafka` and `temporalio/sdk-python`, which indicates a strong technical depth. However, there is no direct evidence of building dashboards or using tools like dbt, Airflow, Looker, or Metabase, which are preferred skills in the JD.",
+              "reasoning": "The candidate's experience with SQL and Python, along with their contributions to relevant open source projects, demonstrates a solid foundation in data-related tasks. However, the lack of specific evidence related to dashboard creation and preferred tools limits the overall strength of their project evidence."
+            }
+          ]
+        },
+        "recommendation": "advance",
+        "recommendation_reasoning": "Candidate is recommended to advance. Final score is 7.44, with skill average 9.0 and dimension average 5.25.",
+        "email_draft": "Subject: Interview Invitation for Junior Data Analyst Position\n\nDear Priya Ramanathan,\n\nI hope this message finds you well. We are pleased to inform you that your application for the Junior Data Analyst position has been recommended to advance to the next stage of our hiring process. Your background and experience appear to align well with the requirements of the role, and we are excited to learn more about you.\n\nWe would like to schedule an interview to discuss your qualifications and how you can contribute to our team. Please share your availability for the upcoming days, and we will do our best to accommodate.\n\nThank you for your interest in joining our organization. We look forward to speaking with you soon!\n\nWarm regards,\n\n[Your Name]  \n[Your Job Title]  \n[Company Name]  \n[Contact Information]  ",
+        "action_status": {
+          "email_sent": true,
+          "ats_updated": true,
+          "rejection_logged": false,
+          "compensation_done": false
+        },
+        "audit_trail": [
+          {
+            "node": "parse_resume",
+            "verdict": "completed",
+            "message": "Resume parsed into structured fields.",
+            "timing_ms": 3271,
+            "order": 1
+          },
+          {
+            "node": "normalize_resume_skills",
+            "verdict": "completed",
+            "message": "Resume skills normalized.",
+            "timing_ms": 3271,
+            "order": 2
+          },
+          {
+            "node": "extract_years_experience",
+            "verdict": "completed",
+            "message": "Years of experience extracted.",
+            "timing_ms": 3271,
+            "order": 3
+          },
+          {
+            "node": "seniority_router",
+            "verdict": "completed",
+            "message": "Routed junior role to junior_scoring_profile.",
+            "timing_ms": 3271,
+            "order": 4
+          },
+          {
+            "node": "junior_scoring_profile",
+            "verdict": "completed",
+            "message": "Applied junior_scoring_profile before parallel scoring.",
+            "timing_ms": 3271,
+            "order": 5
+          },
+          {
+            "node": "research_agent",
+            "verdict": "tool_call_requested",
+            "message": "Requested Tavily search tool call for query: https://github.com/priyaram-eng GitHub repositories projects",
+            "timing_ms": 3271,
+            "order": 6
+          },
+          {
+            "node": "research_scorer",
+            "verdict": "completed",
+            "message": "Research tool results scored.",
+            "timing_ms": 3271,
+            "order": 7
+          },
+          {
+            "node": "draft_email",
+            "verdict": "completed",
+            "message": "Interview invitation email drafted.",
+            "timing_ms": 3271,
+            "order": 8
+          },
+          {
+            "node": "critic_loop",
+            "verdict": "approved",
+            "message": "The email is professional, warm, and clear. It is free from internal scores and harsh evaluation details. It is under 180 words and asks the candidate to share their availability. It is suitable to send from a hiring team.",
+            "timing_ms": 3271,
+            "order": 9
+          },
+          {
+            "node": "send_email_update_ats",
+            "verdict": "completed",
+            "message": "Email sent and ATS updated.",
+            "timing_ms": 3271,
+            "order": 10
+          },
+          {
+            "node": "finalize",
+            "verdict": "completed",
+            "message": "Final audit trail written.",
+            "timing_ms": 3271,
+            "order": 11
+          }
+        ]
+      }
+    },
+    {
+      "scenario": "borderline",
+      "label": "Borderline Candidate",
+      "candidate_name": "Eitan Bergmann",
+      "candidate_email": "eitan.bergmann@example.com",
+      "elapsed_ms": 13250,
+      "run_status": "interrupted",
+      "interrupt": {
+        "value": {
+          "message": "Borderline candidate requires human review",
+          "request": "Please approve or reject this candidate.",
+          "candidate_recommendation": "borderline",
+          "recommendation_reasoning": "Candidate is borderline. Final score is 6.72, with skill average 7.0 and dimension average 6.25. Human review is recommended.",
+          "final_score": 6.72,
+          "score_summary": {
+            "skill_count": 4,
+            "dimension_count": 4,
+            "skill_average": 7.0,
+            "dimension_average": 6.25,
+            "weighted_average": 6.72
+          },
+          "skill_evaluations": [
+            {
+              "skill": "SQL fluency",
+              "score": 8,
+              "evidence": "The resume mentions SQL as a skill and highlights experience with PostgreSQL, which is a SQL-based database.",
+              "reasoning": "The candidate has direct experience with SQL through their work with PostgreSQL, indicating a strong understanding of SQL fluency."
+            },
+            {
+              "skill": "Python or R",
+              "score": 10,
+              "evidence": "2 years of professional Python experience, including building API endpoints and writing integration tests in Python.",
+              "reasoning": "The candidate has strong direct evidence of Python experience, which meets the requirement for the skill 'Python or R'."
+            },
+            {
+              "skill": "data wrangling",
+              "score": 5,
+              "evidence": "Experience with PostgreSQL and building API endpoints that likely involve data manipulation.",
+              "reasoning": "The candidate has experience with PostgreSQL and has built API endpoints, which suggests some level of data wrangling, but there is no explicit mention of data wrangling tasks."
+            },
+            {
+              "skill": "strong communication",
+              "score": 5,
+              "evidence": "Started a weekly internal lunch-and-learn on async Python.",
+              "reasoning": "The candidate initiated a lunch-and-learn, indicating some level of communication skills, but there is no direct evidence of strong communication in other contexts."
+            }
+          ],
+          "dimension_evaluations": [
+            {
+              "dimension": "experience",
+              "score": 5,
+              "evidence": "2 years of professional experience as a Backend Engineer and Junior Software Engineer, with strong skills in PostgreSQL and some experience in SQL.",
+              "reasoning": "The candidate has 2 years of professional experience, which meets the job description's requirement of 0 to 2 years in an analytical role. However, the experience is primarily in backend engineering rather than a direct analytical role, hence the score of 5 for partially relevant experience."
+            },
+            {
+              "dimension": "education",
+              "score": 5,
+              "evidence": "B.A. Linguistics, University of Texas at Austin (2022). Self-taught backend; completed Recurse Center batch in 2022.",
+              "reasoning": "The candidate has a B.A. in Linguistics, which is not directly related to statistics, economics, or mathematics. However, they have completed a self-taught backend program and a batch at the Recurse Center, which indicates a commitment to learning and relevant skills in programming. This partially meets the education requirements."
+            },
+            {
+              "dimension": "signal",
+              "score": 8,
+              "evidence": "Eitan has strong side projects, including a task DAG runner with 80 stars on GitHub and a CLI for inspecting Postgres query plans with 30 stars. He also initiated a weekly internal lunch-and-learn on async Python, demonstrating leadership and communication skills.",
+              "reasoning": "The candidate shows strong positive signals through notable side projects that align with the JD's focus on data and SQL, as well as evidence of initiative and communication through the lunch-and-learn sessions."
+            },
+            {
+              "dimension": "research",
+              "score": 7,
+              "evidence": "The candidate has two notable side projects on GitHub: `tinydag`, a task DAG runner in pure Python with 80 stars, and `pgstats`, a CLI for inspecting Postgres query plans with 30 stars. These projects demonstrate practical application of SQL and Python, relevant to the JD's required skills. Additionally, the candidate has professional experience with PostgreSQL and Python, which aligns with the responsibilities outlined in the JD, such as writing SQL against PostgreSQL and investigating ad hoc business questions.",
+              "reasoning": "The candidate's side projects and professional experience show a solid understanding of SQL and Python, which are crucial for the role. The projects are relevant and demonstrate technical depth, but there is limited evidence of direct experience with preferred tools like dbt or Airflow. Overall, the evidence is strong but not exhaustive, justifying a score of 7."
+            }
+          ],
+          "expected_response_format": {
+            "decision": "approved or rejected",
+            "notes": "optional reviewer notes"
+          }
+        }
+      },
+      "decision": {
+        "scorecard": {
+          "final_score": 6.72,
+          "summary": {
+            "skill_count": 4,
+            "dimension_count": 4,
+            "skill_average": 7.0,
+            "dimension_average": 6.25,
+            "weighted_average": 6.72
+          },
+          "skill_scores": [
+            {
+              "name": "SQL fluency",
+              "score": 8,
+              "evidence": "The resume mentions SQL as a skill and highlights experience with PostgreSQL, which is a SQL-based database.",
+              "reasoning": "The candidate has direct experience with SQL through their work with PostgreSQL, indicating a strong understanding of SQL fluency."
+            },
+            {
+              "name": "Python or R",
+              "score": 10,
+              "evidence": "2 years of professional Python experience, including building API endpoints and writing integration tests in Python.",
+              "reasoning": "The candidate has strong direct evidence of Python experience, which meets the requirement for the skill 'Python or R'."
+            },
+            {
+              "name": "data wrangling",
+              "score": 5,
+              "evidence": "Experience with PostgreSQL and building API endpoints that likely involve data manipulation.",
+              "reasoning": "The candidate has experience with PostgreSQL and has built API endpoints, which suggests some level of data wrangling, but there is no explicit mention of data wrangling tasks."
+            },
+            {
+              "name": "strong communication",
+              "score": 5,
+              "evidence": "Started a weekly internal lunch-and-learn on async Python.",
+              "reasoning": "The candidate initiated a lunch-and-learn, indicating some level of communication skills, but there is no direct evidence of strong communication in other contexts."
+            }
+          ],
+          "dimension_scores": [
+            {
+              "name": "experience",
+              "score": 5,
+              "evidence": "2 years of professional experience as a Backend Engineer and Junior Software Engineer, with strong skills in PostgreSQL and some experience in SQL.",
+              "reasoning": "The candidate has 2 years of professional experience, which meets the job description's requirement of 0 to 2 years in an analytical role. However, the experience is primarily in backend engineering rather than a direct analytical role, hence the score of 5 for partially relevant experience."
+            },
+            {
+              "name": "education",
+              "score": 5,
+              "evidence": "B.A. Linguistics, University of Texas at Austin (2022). Self-taught backend; completed Recurse Center batch in 2022.",
+              "reasoning": "The candidate has a B.A. in Linguistics, which is not directly related to statistics, economics, or mathematics. However, they have completed a self-taught backend program and a batch at the Recurse Center, which indicates a commitment to learning and relevant skills in programming. This partially meets the education requirements."
+            },
+            {
+              "name": "signal",
+              "score": 8,
+              "evidence": "Eitan has strong side projects, including a task DAG runner with 80 stars on GitHub and a CLI for inspecting Postgres query plans with 30 stars. He also initiated a weekly internal lunch-and-learn on async Python, demonstrating leadership and communication skills.",
+              "reasoning": "The candidate shows strong positive signals through notable side projects that align with the JD's focus on data and SQL, as well as evidence of initiative and communication through the lunch-and-learn sessions."
+            },
+            {
+              "name": "research",
+              "score": 7,
+              "evidence": "The candidate has two notable side projects on GitHub: `tinydag`, a task DAG runner in pure Python with 80 stars, and `pgstats`, a CLI for inspecting Postgres query plans with 30 stars. These projects demonstrate practical application of SQL and Python, relevant to the JD's required skills. Additionally, the candidate has professional experience with PostgreSQL and Python, which aligns with the responsibilities outlined in the JD, such as writing SQL against PostgreSQL and investigating ad hoc business questions.",
+              "reasoning": "The candidate's side projects and professional experience show a solid understanding of SQL and Python, which are crucial for the role. The projects are relevant and demonstrate technical depth, but there is limited evidence of direct experience with preferred tools like dbt or Airflow. Overall, the evidence is strong but not exhaustive, justifying a score of 7."
+            }
+          ]
+        },
+        "recommendation": "borderline",
+        "recommendation_reasoning": "Candidate is borderline. Final score is 6.72, with skill average 7.0 and dimension average 6.25. Human review is recommended.",
+        "email_draft": "",
+        "action_status": {
+          "email_sent": false,
+          "ats_updated": false,
+          "rejection_logged": false,
+          "compensation_done": false
+        },
+        "audit_trail": [
+          {
+            "node": "parse_resume",
+            "verdict": "completed",
+            "message": "Resume parsed into structured fields.",
+            "timing_ms": 1892,
+            "order": 1
+          },
+          {
+            "node": "normalize_resume_skills",
+            "verdict": "completed",
+            "message": "Resume skills normalized.",
+            "timing_ms": 1892,
+            "order": 2
+          },
+          {
+            "node": "extract_years_experience",
+            "verdict": "completed",
+            "message": "Years of experience extracted.",
+            "timing_ms": 1892,
+            "order": 3
+          },
+          {
+            "node": "seniority_router",
+            "verdict": "completed",
+            "message": "Routed junior role to junior_scoring_profile.",
+            "timing_ms": 1892,
+            "order": 4
+          },
+          {
+            "node": "junior_scoring_profile",
+            "verdict": "completed",
+            "message": "Applied junior_scoring_profile before parallel scoring.",
+            "timing_ms": 1892,
+            "order": 5
+          },
+          {
+            "node": "research_agent",
+            "verdict": "tool_call_requested",
+            "message": "Requested Tavily search tool call for query: https://github.com/eitanbergmann GitHub repositories projects",
+            "timing_ms": 1892,
+            "order": 6
+          },
+          {
+            "node": "research_scorer",
+            "verdict": "completed",
+            "message": "Research tool results scored.",
+            "timing_ms": 1892,
+            "order": 7
+          }
+        ]
+      }
+    },
+    {
+      "scenario": "weak",
+      "label": "Weak Candidate",
+      "candidate_name": "Mira Volkov",
+      "candidate_email": "mira.volkov@example.com",
+      "elapsed_ms": 18237,
+      "run_status": "completed",
+      "interrupt": null,
+      "decision": {
+        "scorecard": {
+          "final_score": 3.67,
+          "summary": {
+            "skill_count": 4,
+            "dimension_count": 4,
+            "skill_average": 3.75,
+            "dimension_average": 3.25,
+            "weighted_average": 3.67
+          },
+          "skill_scores": [
+            {
+              "name": "SQL fluency",
+              "score": 0,
+              "evidence": "",
+              "reasoning": "There is no mention of SQL or any related database skills in the resume."
+            },
+            {
+              "name": "Python or R",
+              "score": 5,
+              "evidence": "Basic Python listed in skills section.",
+              "reasoning": "The resume mentions 'basic Python' under skills, indicating some familiarity with the language, but does not provide strong evidence of proficiency or experience."
+            },
+            {
+              "name": "data wrangling",
+              "score": 0,
+              "evidence": "",
+              "reasoning": "The resume does not provide any evidence of data wrangling skills or experience."
+            },
+            {
+              "name": "Strong communication",
+              "score": 10,
+              "evidence": "Gave a talk titled 'Migrating a Design System Without Burning Out' at React NYC 2024 and writes weekly Twitter threads on React patterns.",
+              "reasoning": "The candidate has demonstrated strong communication skills through public speaking and writing, which are direct indicators of effective communication."
+            }
+          ],
+          "dimension_scores": [
+            {
+              "name": "experience",
+              "score": 0,
+              "evidence": "The candidate has 6 years of experience as a frontend engineer, which does not align with the JD's requirement of 0 to 2 years in an analytical role.",
+              "reasoning": "The candidate's experience is primarily in frontend engineering and does not include any relevant analytical roles or responsibilities as outlined in the job description."
+            },
+            {
+              "name": "education",
+              "score": 5,
+              "evidence": "B.F.A. Communication Design, Parsons (2018).",
+              "reasoning": "The candidate has a B.F.A. in Communication Design, which is not directly related to statistics, economics, or mathematics. However, the job description accepts bootcamp graduates and self-taught analysts, indicating that alternative educational backgrounds are considered. The candidate's degree is partially relevant, thus a score of 5 is appropriate."
+            },
+            {
+              "name": "signal",
+              "score": 6,
+              "evidence": "Mira has given a talk on 'Migrating a Design System Without Burning Out' at React NYC 2024, which demonstrates her communication skills and initiative in sharing knowledge. Additionally, she has weekly Twitter threads on React patterns, indicating her engagement with the community and ongoing learning. She has also mentored mid-level engineers, showcasing leadership and ownership in her role.",
+              "reasoning": "Mira demonstrates several positive signals through her speaking engagement, community involvement, and mentorship. While these signals are strong, they are somewhat tangential to the JD context, which focuses on logistics and data analysis rather than frontend engineering. Therefore, a score of 6 reflects useful signals without being directly aligned with the JD."
+            },
+            {
+              "name": "research",
+              "score": 2,
+              "evidence": "The candidate has a GitHub profile with 9 repositories, but there is no specific evidence of projects related to SQL, Python, data wrangling, or the preferred skills listed in the JD. The resume primarily focuses on frontend engineering and lacks relevant data-related projects.",
+              "reasoning": "The candidate's experience and projects are heavily focused on frontend development with no clear evidence of skills or projects related to the required data skills in the JD. The GitHub repositories do not indicate any relevant work in SQL, Python, or data analysis, which are critical for the role."
+            }
+          ]
+        },
+        "recommendation": "reject",
+        "recommendation_reasoning": "Candidate is recommended for rejection. Final score is 3.67, with skill average 3.75 and dimension average 3.25.",
+        "email_draft": "Subject: Thank You for Your Application\n\nDear Mira,\n\nThank you for taking the time to apply for the Junior Data Analyst position with us. We appreciate the effort you put into the interview process and your interest in our team.\n\nAfter careful consideration, we have decided to move forward with other candidates at this time. This decision was not easy, as we received many strong applications.\n\nWe encourage you to apply for future openings that align with your skills and interests, as we were impressed with your background and potential.\n\nThank you once again for your interest in our company. We wish you all the best in your job search and future endeavors.\n\nWarm regards,\n\n[Your Name]  \n[Your Job Title]  \n[Company Name]  \n[Contact Information]  ",
+        "action_status": {
+          "email_sent": false,
+          "ats_updated": false,
+          "rejection_logged": true,
+          "compensation_done": false
+        },
+        "audit_trail": [
+          {
+            "node": "parse_resume",
+            "verdict": "completed",
+            "message": "Resume parsed into structured fields.",
+            "timing_ms": 1823,
+            "order": 1
+          },
+          {
+            "node": "normalize_resume_skills",
+            "verdict": "completed",
+            "message": "Resume skills normalized.",
+            "timing_ms": 1823,
+            "order": 2
+          },
+          {
+            "node": "extract_years_experience",
+            "verdict": "completed",
+            "message": "Years of experience extracted.",
+            "timing_ms": 1823,
+            "order": 3
+          },
+          {
+            "node": "seniority_router",
+            "verdict": "completed",
+            "message": "Routed junior role to junior_scoring_profile.",
+            "timing_ms": 1823,
+            "order": 4
+          },
+          {
+            "node": "junior_scoring_profile",
+            "verdict": "completed",
+            "message": "Applied junior_scoring_profile before parallel scoring.",
+            "timing_ms": 1823,
+            "order": 5
+          },
+          {
+            "node": "research_agent",
+            "verdict": "tool_call_requested",
+            "message": "Requested Tavily search tool call for query: Mira Volkov GitHub repositories projects",
+            "timing_ms": 1823,
+            "order": 6
+          },
+          {
+            "node": "research_scorer",
+            "verdict": "completed",
+            "message": "Research tool results scored.",
+            "timing_ms": 1823,
+            "order": 7
+          },
+          {
+            "node": "draft_rejection",
+            "verdict": "completed",
+            "message": "Rejection email drafted.",
+            "timing_ms": 1823,
+            "order": 8
+          },
+          {
+            "node": "log_rejection",
+            "verdict": "completed",
+            "message": "Rejection decision logged.",
+            "timing_ms": 1823,
+            "order": 9
+          },
+          {
+            "node": "finalize",
+            "verdict": "completed",
+            "message": "Final audit trail written.",
+            "timing_ms": 1823,
+            "order": 10
+          }
+        ]
+      }
+    }
+  ],
+  "pending_reviews": [
+    "borderline"
+  ]
+}
