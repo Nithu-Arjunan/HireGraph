@@ -4,6 +4,9 @@ HireGraph is a LangGraph hiring workflow demo that evaluates resumes against a j
 
 The active demo entrypoint is the FastAPI server in `src/demo_server.py`. It calls `src/demo_runner.py`, which builds the graph from `src/graph.py` and runs the sample candidate scenarios.
 
+## 
+Demo link - https://youtu.be/i6PslKtGbdw?si=69LMRqObGu_LIZPL
+
 ## What The Graph Demonstrates
 
 - TypedDict state for raw resume/JD text, classification, scorecard, email drafts, audit trail, messages, and recovery fields.
@@ -110,4 +113,4 @@ Run the test suite:
 uv run python -m unittest discover -s test -v
 ```
 
-Note: `pytest` is not required for the current test suite; the tests use Python's built-in `unittest` runner.
+
