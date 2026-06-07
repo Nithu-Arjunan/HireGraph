@@ -1,8 +1,13 @@
+import ast
+import smtplib
+from email.message import EmailMessage
+
 from src.state import HireGraphState, SkillWorkerInput
 from src.utils import extract_text_from_file
 from src.schema import JDRequirements, SkillScore,DimensionScore,EmailCritique
 from langchain_openai import ChatOpenAI
 from langgraph.types import Send, Command, Literal, interrupt
+from langchain_core.messages import AIMessage, ToolMessage
 
 from src.config import (
     CRITIC_MODEL,
@@ -10,8 +15,13 @@ from src.config import (
     EXTRACT_MODEL,
     OPENAI_API_KEY,
     SCORING_MODEL,
+    SMTP_FROM_EMAIL,
+    SMTP_HOST,
+    SMTP_PASSWORD,
+    SMTP_PORT,
+    SMTP_USERNAME,
 )
-from src.tools import tavily_search
+from src.tools import tavily_search_tool
 from src.utils import extract_candidate_name, extract_github_url, extract_email_from_text
 
 
@@ -55,6 +65,10 @@ def ingest_resume_jd(state: HireGraphState) -> HireGraphState:
     state["candidate_email"] = candidate_email
     state["candidate_name"] = candidate_name
     state["errors"] = errors
+    state.setdefault("email_sent", False)
+    state.setdefault("ats_updated", False)
+    state.setdefault("rejection_logged", False)
+    state.setdefault("compensation_done", False)
 
     return state
 
@@ -95,9 +109,18 @@ def extract_jd_requirements(state: HireGraphState) -> HireGraphState:
     """
     result = structured_llm.invoke(prompt)
 
+    jd_requirements = result.model_dump()
+
     return {
-        "jd_requirements": result.model_dump(),
-        }
+        "jd_requirements": jd_requirements,
+        "messages": [
+            AIMessage(
+                content=(
+                    f"Extracted JD requirements: {jd_requirements}"
+                )
+            )
+        ]
+    }
 
 ### Node for orchestrator fan out of multiple requirement extraction and scoring nodes in the future ##
 
@@ -264,17 +287,138 @@ def research_agent(state):
     print("[OK] Running research_agent")
 
     resume_text = state["resume_text"]
-    jd_requirements = state["jd_requirements"]
 
     candidate_name = extract_candidate_name(resume_text)
     github_url = extract_github_url(resume_text)
 
     if github_url:
-        query = f"{github_url} GitHub repositories projects"
+        default_query = f"{github_url} GitHub repositories projects"
     else:
-        query = f"{candidate_name} GitHub repositories projects"
+        default_query = f"{candidate_name} GitHub repositories projects"
 
-    search_results = tavily_search(query, max_results=5)
+    query = state.get("research_query") or default_query
+
+    research_llm = score_llm.bind_tools(
+        [tavily_search_tool],
+        tool_choice="tavily_search_tool",
+    )
+
+    prompt = f"""
+    Search for external GitHub, project, and profile evidence for this candidate.
+
+    Candidate:
+    {candidate_name}
+
+    GitHub URL, if available:
+    {github_url}
+
+    Use this query:
+    {query}
+    """
+
+    response = research_llm.invoke(prompt)
+
+    return {
+        "resume_text": resume_text,
+        "research_query": query,
+        "messages": [response],
+        "audit_trail": [
+            {
+                "node": "research_agent",
+                "status": "tool_call_requested",
+                "message": f"Requested Tavily search tool call for query: {query}",
+            }
+        ],
+    }
+
+
+def parse_tool_results(content) -> list[dict]:
+    if isinstance(content, list):
+        return content
+
+    if not isinstance(content, str):
+        return []
+
+    try:
+        parsed = ast.literal_eval(content)
+    except (ValueError, SyntaxError):
+        return [{"title": "Tool output", "url": "", "content": content}]
+
+    return parsed if isinstance(parsed, list) else []
+
+
+def normalize_tool_error(content) -> str:
+    raw_error = str(content).strip()
+    if "ValueError('" in raw_error:
+        return raw_error.split("ValueError('", 1)[1].split("')", 1)[0]
+    if 'ValueError("' in raw_error:
+        return raw_error.split('ValueError("', 1)[1].split('")', 1)[0]
+    if raw_error.startswith("Error: "):
+        raw_error = raw_error.removeprefix("Error: ").strip()
+    return raw_error.splitlines()[0].strip()
+
+
+def research_scorer(
+    state: HireGraphState,
+) -> Command[Literal["aggregate_scores", "repair_research_query"]]:
+    print("[OK] Running research_scorer")
+
+    tool_messages = [
+        message
+        for message in state.get("messages", [])
+        if isinstance(message, ToolMessage)
+    ]
+
+    if not tool_messages:
+        tool_error = "Research tool did not return a ToolMessage."
+        return Command(
+            goto="repair_research_query",
+            update={
+                "tool_error": tool_error,
+                "tool_retry_count": state.get("tool_retry_count", 0) + 1,
+                "audit_trail": [
+                    {
+                        "node": "research_scorer",
+                        "status": "tool_error",
+                        "message": tool_error,
+                    }
+                ],
+            },
+        )
+
+    latest_tool_message = tool_messages[-1]
+    tool_status = getattr(latest_tool_message, "status", None)
+
+    if tool_status == "error":
+        tool_error = normalize_tool_error(latest_tool_message.content)
+        return Command(
+            goto="repair_research_query",
+            update={
+                "tool_error": tool_error,
+                "tool_retry_count": state.get("tool_retry_count", 0) + 1,
+                "audit_trail": [
+                    {
+                        "node": "research_scorer",
+                        "status": "tool_error",
+                        "message": tool_error,
+                    }
+                ],
+                "messages": [
+                    AIMessage(
+                        content=(
+                            "Research tool failed and was routed for LLM query repair. "
+                            f"Error: {tool_error}"
+                        )
+                    )
+                ],
+            },
+        )
+
+    search_results = parse_tool_results(latest_tool_message.content)
+    resume_text = state["resume_text"]
+    jd_requirements = state["jd_requirements"]
+    github_url = extract_github_url(resume_text)
+    query = state.get("research_query", "")
 
     search_context = "\n\n".join(
         [
@@ -329,18 +473,89 @@ def research_agent(state):
 
     result = structured_llm.invoke(prompt)
 
-    print("[OK] research_agent result:", result.model_dump())
+    print("[OK] research_scorer result:", result.model_dump())
 
-    return {
-        "dimension_evaluations": [result.model_dump()],
-        "research_results": [
-            {
-                "query": query,
-                "github_url": github_url,
-                "results": search_results,
-            }
-        ],
-    }
+    return Command(
+        goto="aggregate_scores",
+        update={
+            "dimension_evaluations": [result.model_dump()],
+            "research_results": [
+                {
+                    "query": query,
+                    "github_url": github_url,
+                    "results": search_results,
+                }
+            ],
+            "audit_trail": [
+                {
+                    "node": "research_scorer",
+                    "status": "completed",
+                    "message": "Research tool results scored.",
+                }
+            ],
+        },
+    )
+
+
+def repair_research_query(
+    state: HireGraphState,
+) -> Command[Literal["research_agent", "aggregate_scores"]]:
+    retry_count = state.get("tool_retry_count", 0)
+
+    if retry_count >= 3:
+        return Command(
+            goto="aggregate_scores",
+            update={
+                "dimension_evaluations": [
+                    {
+                        "dimension": "research",
+                        "score": 0,
+                        "evidence": "Research tool failed after query repair attempts.",
+                        "reasoning": state.get("tool_error", "Unknown tool error."),
+                    }
+                ],
+                "audit_trail": [
+                    {
+                        "node": "repair_research_query",
+                        "status": "exhausted",
+                        "message": "Research query repair attempts exhausted.",
+                    }
+                ],
+            },
+        )
+
+    prompt = f"""
+    A web search tool failed while researching a candidate profile.
+
+    Failed query:
+    {state.get("research_query")}
+
+    Tool error:
+    {state.get("tool_error")}
+
+    Rewrite the query so it is simpler, shorter, and likely to work.
+    Return only the revised search query text.
+    """
+
+    response = score_llm.invoke(prompt)
+    repaired_query = response.content.strip()
+
+    return Command(
+        goto="research_agent",
+        update={
+            "research_query": repaired_query,
+            "audit_trail": [
+                {
+                    "node": "repair_research_query",
+                    "status": "completed",
+                    "message": "Research query repaired by LLM.",
+                }
+            ],
+            "messages": [
+                AIMessage(content=f"Repaired research query: {repaired_query}")
+            ],
+        },
+    )
 
 
 ### Function to call both fixed and dynamic skill workers
@@ -419,6 +634,13 @@ def aggregate_scores(state: HireGraphState):
             "skill_average": round(sum(skill_scores) / len(skill_scores), 2) if skill_scores else 0,
             "dimension_average": round(sum(dimension_scores) / len(dimension_scores), 2) if dimension_scores else 0,
         },
+        "messages": [
+            AIMessage(
+                content=(
+                    f"Aggregated scores. Final score: {final_score}. "
+                )
+            )
+        ]   
     }
 
 ### Node to draft email based on recommendation
@@ -622,6 +844,14 @@ def recommendation_router(
         update={
             "recommendation": recommendation,
             "recommendation_reasoning": reasoning,
+            "messages": [
+                AIMessage(
+                    content=(
+                        f"Recommendation: {recommendation.upper()}. "
+                        f"Reasoning: {reasoning}"
+                    )
+                )
+            ],
         },
     )
 
@@ -711,27 +941,92 @@ def critic_loop(
 
 ### Node to send email and update ATS
 
-def send_email_update_ats(state: HireGraphState):
+def perform_downstream_actions(state: HireGraphState) -> None:
     """
-    Mock external action:
-    - send email
-    - update ATS
+    Sandbox external action:
+    - send email through Mailtrap/Ethereal SMTP
+    - update ATS after email send succeeds
     """
 
-    print("[OK] Sending email to:", state.get("candidate_email"))
+    candidate_email = state.get("candidate_email")
+    draft_email_body = state.get("draft_email")
+    candidate_name = state.get("candidate_name", "Candidate")
+    jd_title = state.get("jd_requirements", {}).get("job_title", "the role")
+    from_email = SMTP_FROM_EMAIL or SMTP_USERNAME
+
+    if not candidate_email:
+        raise ConnectionError("Candidate email is missing.")
+    if not draft_email_body:
+        raise ConnectionError("Draft email body is missing.")
+    if not SMTP_HOST or not SMTP_USERNAME or not SMTP_PASSWORD or not from_email:
+        raise ConnectionError("SMTP sandbox configuration is incomplete.")
+
+    message = EmailMessage()
+    message["From"] = from_email
+    message["To"] = candidate_email
+    message["Subject"] = f"Interview invitation for {jd_title}"
+    message.set_content(draft_email_body)
+
+    print("[OK] Sending sandbox email to:", candidate_email)
+
+    try:
+        with smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=10) as smtp:
+            smtp.starttls()
+            smtp.login(SMTP_USERNAME, SMTP_PASSWORD)
+            smtp.send_message(message)
+    except (OSError, smtplib.SMTPException) as exc:
+        raise ConnectionError(f"SMTP send failed: {exc}") from exc
+
+    print("[OK] Sandbox email accepted for:", candidate_name)
     print("[OK] Updating ATS for:", state.get("candidate_name"))
 
-    return {
-        "email_sent": True,
-        "ats_updated": True,
-        "audit_trail": [
-            {
-                "node": "send_email_update_ats",
-                "status": "completed",
-                "message": "Email sent and ATS updated.",
-            }
-        ],
-    }
+
+def send_email_update_ats(
+    state: HireGraphState,
+) -> Command[Literal["finalize", "compensate"]]:
+    max_attempts = 3
+    last_error = ""
+
+    for attempt in range(1, max_attempts + 1):
+        try:
+            perform_downstream_actions(state)
+            return Command(
+                goto="finalize",
+                update={
+                    "email_sent": True,
+                    "ats_updated": True,
+                    "downstream_attempts": attempt,
+                    "audit_trail": [
+                        {
+                            "node": "send_email_update_ats",
+                            "status": "completed",
+                            "message": "Email sent and ATS updated.",
+                        }
+                    ],
+                },
+            )
+        except (ConnectionError, TimeoutError) as exc:
+            last_error = str(exc)
+
+    return Command(
+        goto="compensate",
+        update={
+            "email_sent": False,
+            "ats_updated": False,
+            "downstream_error": last_error,
+            "downstream_attempts": max_attempts,
+            "audit_trail": [
+                {
+                    "node": "send_email_update_ats",
+                    "status": "failed",
+                    "message": (
+                        "Downstream email/ATS action failed after retries. "
+                        "Routing to compensation."
+                    ),
+                }
+            ],
+        },
+    )
 
 # Node for logging rejection
 def log_rejection(state: HireGraphState):
@@ -766,6 +1061,15 @@ def compensate(state: HireGraphState):
 ### Final Audit trial node
 def finalize(state: HireGraphState):
     return {
+        "messages": [
+            AIMessage(
+                content=(
+                    f"Hiring workflow completed. "
+                    f"Recommendation: {state.get('recommendation')}. "
+                    f"Final score: {state.get('final_score')}."
+                )
+            )
+        ],
         "audit_trail": [
             {
                 "node": "finalize",

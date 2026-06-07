@@ -1,6 +1,7 @@
 import os
 from tavily import TavilyClient
 from dotenv import load_dotenv
+from langchain_core.tools import tool
 
 load_dotenv()
 
@@ -22,3 +23,9 @@ def tavily_search(query: str, max_results: int = 5) -> list[dict]:
     )
 
     return response.get("results", [])
+
+
+@tool
+def tavily_search_tool(query: str) -> list[dict]:
+    """Search the web for candidate GitHub/project/profile evidence."""
+    return tavily_search(query, max_results=5)

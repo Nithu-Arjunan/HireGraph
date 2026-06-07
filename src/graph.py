@@ -1,6 +1,7 @@
 from langgraph.graph import END, START, StateGraph
 from langgraph.checkpoint.memory import MemorySaver
 from langgraph.types import RetryPolicy
+from langgraph.prebuilt import ToolNode
 
 from src.node import (
     ingest_resume_jd,
@@ -12,6 +13,8 @@ from src.node import (
     signal_scorer,
     aggregate_scores,
     research_agent,
+    research_scorer,
+    repair_research_query,
     draft_email,
     draft_rejection,
     human_review,
@@ -23,6 +26,7 @@ from src.node import (
     finalize,
 )
 from src.state import HireGraphState
+from src.tools import tavily_search_tool
 
 
 def build_hiregraph():
@@ -44,6 +48,9 @@ def build_hiregraph():
         max_attempts=3,
         initial_interval=0.05, retry_on=ConnectionError),
     )
+    builder.add_node("research_tools", ToolNode([tavily_search_tool], handle_tool_errors=True))
+    builder.add_node("research_scorer", research_scorer)
+    builder.add_node("repair_research_query", repair_research_query)
 
     builder.add_node("aggregate_scores", aggregate_scores)
 
@@ -59,14 +66,7 @@ def build_hiregraph():
     builder.add_node("human_review", human_review)
     builder.add_node("critic_loop", critic_loop)
 
-    builder.add_node(
-    "send_email_update_ats",
-    send_email_update_ats,
-    retry_policy=RetryPolicy(
-        max_attempts=3,
-        retry_on=(ConnectionError, TimeoutError),
-    ),
-    )
+    builder.add_node("send_email_update_ats", send_email_update_ats)
 
  
     builder.add_node("log_rejection", log_rejection)
@@ -90,17 +90,23 @@ def build_hiregraph():
             
         ],
     )
-     # 4. All parallel branches flow into aggregation
-    builder.add_edge("skill_worker", "aggregate_scores")
-    builder.add_edge("experience_scorer", "aggregate_scores")
-    builder.add_edge("education_scorer", "aggregate_scores")
-    builder.add_edge("signal_scorer", "aggregate_scores")
-    builder.add_edge("research_agent", "aggregate_scores")
+     # 4. All parallel branches join before aggregation
+    builder.add_edge("research_agent", "research_tools")
+    builder.add_edge("research_tools", "research_scorer")
+    builder.add_edge(
+        [
+            "skill_worker",
+            "experience_scorer",
+            "education_scorer",
+            "signal_scorer",
+            "research_scorer",
+        ],
+        "aggregate_scores",
+    )
 
     # 5. Recommendation and email drafting flow
     builder.add_edge("aggregate_scores", "recommendation_router")
     builder.add_edge("draft_email", "critic_loop")
-    builder.add_edge("send_email_update_ats", "finalize")
     builder.add_edge("draft_rejection", "log_rejection")
     builder.add_edge("log_rejection", "finalize")
 
